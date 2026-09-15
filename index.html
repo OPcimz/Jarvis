@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Mark LII — Console</title>
+<meta name="description" content="Book notes, scheduler and remote console for Mark LII.">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="setup" class="setup hidden">
+  <div class="setup-card">
+    <h1>Connect to Supabase</h1>
+    <p>Paste the project URL and anon key from your Supabase project (Settings → Data API / API Keys). This is stored only in this browser.</p>
+    <input id="setupUrl" type="text" placeholder="https://xxxxx.supabase.co">
+    <input id="setupKey" type="text" placeholder="anon / publishable key (eyJ... or sb_publishable_...)">
+    <button id="setupSave">Connect</button>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">MK·LII</span>
+      <span class="brand-sub">Console</span>
+    </div>
+    <div class="status" id="connStatus">
+      <span class="dot"></span><span class="status-text">checking…</span>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="books">Books</button>
+    <button class="tab" data-tab="schedule">Scheduler</button>
+    <button class="tab" data-tab="phone">Phone</button>
+    <button class="tab" data-tab="system">System</button>
+  </nav>
+
+  <main>
+
+    <!-- ── BOOKS ─────────────────────────────────────────────────────── -->
+    <section id="tab-books" class="panel active">
+      <div class="panel-head">
+        <h2>Book notes</h2>
+        <p class="hint">Points you told Mark LII while watching a book-summary video.</p>
+      </div>
+      <div id="bookGrid" class="grid"></div>
+      <div id="bookEmpty" class="empty hidden">No books yet — tell Mark LII "from &lt;book&gt;, video 1, note that…" and it'll show up here.</div>
+
+      <div id="videoView" class="drill hidden">
+        <button class="back" id="backToBooks">← All books</button>
+        <h3 id="videoBookTitle"></h3>
+        <div id="videoGrid" class="grid"></div>
+      </div>
+
+      <div id="noteView" class="drill hidden">
+        <button class="back" id="backToVideos">← Videos</button>
+        <h3 id="noteVideoTitle"></h3>
+        <ul id="noteList" class="note-list"></ul>
+      </div>
+    </section>
+
+    <!-- ── SCHEDULER ─────────────────────────────────────────────────── -->
+    <section id="tab-schedule" class="panel">
+      <div class="panel-head">
+        <h2>Scheduler</h2>
+        <p class="hint">Tasks stored by Mark LII — or add one here, it'll pick it up too.</p>
+      </div>
+
+      <form id="taskForm" class="quick-add">
+        <input id="taskDesc" type="text" placeholder="What do you need to do?" required>
+        <input id="taskDate" type="date">
+        <input id="taskTime" type="time">
+        <select id="taskRepeat">
+          <option value="none">Doesn't repeat</option>
+          <option value="daily">Every day</option>
+          <option value="mon,tue,wed,thu,fri">Weekdays</option>
+          <option value="sat,sun">Weekends</option>
+        </select>
+        <button type="submit">Add</button>
+      </form>
+
+      <div id="habitList" class="task-list"></div>
+      <div id="taskList" class="task-list"></div>
+      <div id="taskEmpty" class="empty hidden">Nothing scheduled yet.</div>
+    </section>
+
+    <!-- ── PHONE ─────────────────────────────────────────────────────── -->
+    <section id="tab-phone" class="panel">
+      <div class="panel-head">
+        <h2>Phone control</h2>
+        <p class="hint">Works from anywhere — Mark LII picks these up next time it's running on your PC.</p>
+      </div>
+
+      <div id="chatLog" class="chat-log"></div>
+
+      <form id="chatForm" class="chat-form">
+        <button type="button" id="micBtn" class="mic-btn" title="Speak">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2z"/></svg>
+        </button>
+        <input id="chatInput" type="text" placeholder="Type a message for Mark LII…" autocomplete="off">
+        <button type="submit" class="send-btn">Send</button>
+      </form>
+      <label class="speak-toggle"><input type="checkbox" id="speakReplies"> Read replies aloud</label>
+    </section>
+
+    <!-- ── SYSTEM ────────────────────────────────────────────────────── -->
+    <section id="tab-system" class="panel">
+      <div class="panel-head">
+        <h2>PC status</h2>
+        <p class="hint" id="sysUpdated">Waiting for data…</p>
+      </div>
+
+      <div id="sysOffline" class="offline-banner hidden">
+        Mark LII isn't running right now (or hasn't synced recently) — this is the last known status, not live.
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">CPU</div>
+          <div class="stat-value" id="statCpu">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barCpu"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Memory</div>
+          <div class="stat-value" id="statMem">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="barMem"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Network</div>
+          <div class="stat-value" id="statNet">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">GPU</div>
+          <div class="stat-value" id="statGpu">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Temp</div>
+          <div class="stat-value" id="statTmp">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value" id="statUptime">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Processes</div>
+          <div class="stat-value" id="statProc">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">OS</div>
+          <div class="stat-value" id="statOs">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Microphone</div>
+          <div class="stat-value" id="statMic">—</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

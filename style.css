@@ -1,0 +1,233 @@
+:root {
+  --bg:        #0a0d10;
+  --bg-panel:  #10151a;
+  --bg-raised: #161c22;
+  --line:      #232b32;
+  --text:      #e8edf1;
+  --muted:     #7c8a94;
+  --accent:    #4fd1c5;   /* reactor teal */
+  --accent-2:  #e8a33d;   /* arc-gold, used sparingly */
+  --danger:    #e2685f;
+  --radius:    10px;
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hidden { display: none !important; }
+
+button { font-family: inherit; cursor: pointer; }
+input { font-family: inherit; }
+
+/* ── First-run setup ─────────────────────────────────────────────────── */
+
+.setup {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(79,209,197,0.08), transparent 40%),
+    var(--bg);
+}
+.setup-card {
+  width: 100%; max-width: 420px;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 28px;
+}
+.setup-card h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px; margin: 0 0 10px;
+}
+.setup-card p { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0 0 18px; }
+.setup-card input {
+  width: 100%; padding: 11px 13px; margin-bottom: 10px;
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px;
+  color: var(--text); font-size: 14px; outline: none;
+}
+.setup-card input:focus { border-color: var(--accent); }
+.setup-card button {
+  width: 100%; padding: 12px; margin-top: 6px;
+  background: var(--accent); color: #06211e; font-weight: 600; font-size: 14px;
+  border: none; border-radius: 8px;
+}
+
+/* ── Shell ────────────────────────────────────────────────────────────── */
+
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: baseline; gap: 8px; }
+.brand-mark {
+  font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px;
+  letter-spacing: 0.5px;
+}
+.brand-sub { color: var(--muted); font-size: 13px; }
+
+.status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.status .dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(226,104,95,0.15);
+}
+.status.ok .dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(79,209,197,0.15); }
+
+.tabs {
+  display: flex; gap: 4px; padding: 10px 14px; border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+.tab {
+  background: none; border: none; color: var(--muted);
+  padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 500;
+  white-space: nowrap;
+}
+.tab.active { background: var(--bg-raised); color: var(--text); }
+
+main { flex: 1; padding: 18px 16px 40px; max-width: 720px; width: 100%; margin: 0 auto; }
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+.panel-head { margin-bottom: 18px; }
+.panel-head h2 { font-family: 'Space Grotesk', sans-serif; font-size: 20px; margin: 0 0 4px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+
+/* ── Grid of buttons (books / videos) ────────────────────────────────── */
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.grid-btn {
+  display: block; width: 100%; text-align: left;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px; color: var(--text); font-size: 14px; font-weight: 500;
+  transition: border-color .15s, transform .1s;
+}
+.grid-btn:hover { border-color: var(--accent); }
+.grid-btn:active { transform: scale(0.98); }
+.grid-btn .count {
+  display: block; margin-top: 6px; font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--muted);
+}
+
+.empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+
+.drill { margin-top: 8px; }
+.back {
+  background: none; border: none; color: var(--accent); font-size: 13px;
+  padding: 0 0 14px; font-weight: 500;
+}
+.drill h3 { font-family: 'Space Grotesk', sans-serif; font-size: 17px; margin: 0 0 14px; }
+
+.note-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.note-list li {
+  background: var(--bg-panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 12px 14px; font-size: 14px; line-height: 1.5;
+}
+
+/* ── Scheduler ────────────────────────────────────────────────────────── */
+
+.quick-add {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px;
+}
+.quick-add input {
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: 7px;
+  color: var(--text); padding: 9px 10px; font-size: 14px; outline: none;
+}
+.quick-add input#taskDesc { flex: 1 1 100%; }
+.quick-add input#taskDate { flex: 1 1 140px; }
+.quick-add input#taskTime { flex: 1 1 100px; }
+.quick-add select#taskRepeat {
+  flex: 1 1 140px; background: var(--bg-raised); border: 1px solid var(--line);
+  border-radius: 7px; color: var(--text); padding: 9px 10px; font-size: 14px;
+}
+.quick-add button {
+  flex: 0 0 auto; background: var(--accent); color: #06211e; border: none;
+  border-radius: 7px; padding: 9px 16px; font-weight: 600; font-size: 14px;
+}
+
+.task-list { display: flex; flex-direction: column; gap: 8px; }
+.task-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;
+}
+.task-when {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent-2);
+  white-space: nowrap;
+}
+.task-desc { flex: 1; font-size: 14px; }
+.task-done {
+  background: none; border: 1px solid var(--line); color: var(--muted);
+  border-radius: 6px; padding: 4px 10px; font-size: 12px;
+}
+.task-done:hover { border-color: var(--accent); color: var(--accent); }
+.task-row.done .task-desc { text-decoration: line-through; color: var(--muted); }
+.recur-badge {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--accent);
+  border: 1px solid rgba(79,209,197,0.35); border-radius: 999px; padding: 2px 8px;
+  white-space: nowrap;
+}
+.section-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin: 4px 0 8px; }
+
+/* ── Phone chat ───────────────────────────────────────────────────────── */
+
+.chat-log {
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 200px; max-height: 50vh; overflow-y: auto;
+  margin-bottom: 12px; padding-right: 2px;
+}
+.msg { max-width: 82%; padding: 10px 13px; border-radius: 12px; font-size: 14px; line-height: 1.45; }
+.msg-user { align-self: flex-end; background: var(--bg-raised); border: 1px solid var(--line); border-bottom-right-radius: 3px; }
+.msg-mark { align-self: flex-start; background: rgba(79,209,197,0.08); border: 1px solid rgba(79,209,197,0.25); border-bottom-left-radius: 3px; }
+.msg-sys { align-self: center; color: var(--muted); font-size: 12px; background: none; }
+
+.chat-form { display: flex; gap: 8px; align-items: center; }
+.chat-form input {
+  flex: 1; background: var(--bg-panel); border: 1px solid var(--line); border-radius: 999px;
+  color: var(--text); padding: 12px 16px; font-size: 14px; outline: none;
+}
+.chat-form input:focus { border-color: var(--accent); }
+.mic-btn, .send-btn {
+  border: 1px solid var(--line); background: var(--bg-panel); color: var(--muted);
+  border-radius: 50%; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.send-btn { border-radius: 999px; width: auto; padding: 0 18px; background: var(--accent); color: #06211e; border: none; font-weight: 600; font-size: 14px; }
+.mic-btn.live { color: var(--danger); border-color: var(--danger); }
+
+.speak-toggle { display: flex; align-items: center; gap: 6px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+
+/* ── System panel ─────────────────────────────────────────────────────── */
+
+.offline-banner {
+  background: rgba(226,104,95,0.08); border: 1px solid rgba(226,104,95,0.3);
+  color: #f2a099; border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.stat-card {
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px;
+}
+.stat-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+}
+.stat-value { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600; }
+.stat-bar { height: 4px; background: var(--bg-raised); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.stat-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width .3s; }
+.stat-bar-fill.warn { background: var(--accent-2); }
+.stat-bar-fill.danger { background: var(--danger); }
+
+@media (max-width: 480px) {
+  main { padding: 14px 12px 32px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+}
