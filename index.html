@@ -40,6 +40,9 @@
     background:var(--pri); color:#00131a; font-weight:700; }
   button.mic { background:#0e2a37; color:var(--pri); }
   button.mic.live { background:#c0392b; color:#fff; }
+  .msg .rp { display:inline-block; margin-top:6px; padding:3px 10px; border:1px solid var(--line); border-radius:12px;
+    background:#0e2a37; color:var(--pri); font-size:12px; cursor:pointer; width:auto; height:auto; }
+  .msg .rp.busy { opacity:.55; }
   .opts { display:flex; justify-content:space-between; align-items:center; padding:6px 16px 10px;
     font-size:12px; color:var(--dim); background:var(--panel); }
   .opts label { display:flex; gap:6px; align-items:center; }
@@ -58,10 +61,11 @@
   <button type="submit" aria-label="Send">➤</button>
 </form>
 <div class="opts">
-  <label><input type="checkbox" id="speak"> Read replies aloud</label>
+  <label><input type="checkbox" id="speak" checked> Play his voice</label>
   <span>JARVIS must be running on your PC</span>
 </div>
 
+<audio id="voice" playsinline preload="auto"></audio>
 <script src="config.js"></script>
 <script>
 (function () {
@@ -76,10 +80,55 @@
   const REST = CFG.url.replace(/\/$/, '') + '/rest/v1/';
   const api = (path, opt) => fetch(REST + path, Object.assign({ headers: H }, opt || {}));
 
-  function add(kind, text) {
+  function add(kind, text, id) {
     const d = document.createElement('div');
-    d.className = 'msg ' + kind; d.textContent = text;
+    d.className = 'msg ' + kind;
+    const t = document.createElement('span'); t.textContent = text; d.appendChild(t);
+    if (kind === 'him' && id) {
+      d.appendChild(document.createElement('br'));
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'rp';
+      b.textContent = '🔊 play'; b.onclick = () => playVoice(id, b, true);
+      d.appendChild(b);
+    }
     log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
+  }
+
+  /* ── His voice: the exact audio JARVIS spoke on the PC, fetched from the cloud ── */
+  const player = $('voice'), clips = {};
+  let unlocked = false;
+  function unlock() {          // mobile browsers only allow sound after a tap; do it once
+    if (unlocked) return; unlocked = true;
+    try {
+      player.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+      const p = player.play(); if (p && p.catch) p.catch(() => {});
+    } catch (_) {}
+  }
+  ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, unlock, { once: true, passive: true }));
+
+  async function fetchClip(id, tries) {
+    if (clips[id]) return clips[id];
+    for (let i = 0; i < tries; i++) {
+      try {
+        const r = await api('kv_store?select=value&key=eq.phone:audio:' + id);
+        const rows = await r.json();
+        if (rows && rows[0] && rows[0].value && rows[0].value.b64) {
+          const v = rows[0].value, bin = atob(v.b64), u8 = new Uint8Array(bin.length);
+          for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+          return clips[id] = URL.createObjectURL(new Blob([u8], { type: v.mime || 'audio/mpeg' }));
+        }
+      } catch (_) {}
+      await new Promise(res => setTimeout(res, 1200));   // the clip uploads just after the text
+    }
+    return null;
+  }
+  async function playVoice(id, btn, manual) {
+    if (btn) { btn.classList.add('busy'); btn.textContent = '🔊 …'; }
+    const url = await fetchClip(id, manual ? 3 : 25);
+    if (btn) btn.classList.remove('busy');
+    if (!url) { if (btn) btn.textContent = manual ? '🔊 voice not available' : '🔊 play'; return; }
+    if (btn) btn.textContent = '🔊 play';
+    try { player.src = url; await player.play(); }
+    catch (_) { if (btn) btn.textContent = '🔊 tap to hear'; }
   }
 
   let lastOut = 0, pending = 0, waitTimer = null;
@@ -93,7 +142,7 @@
       const all = [].concat(i.map(r => Object.assign(r, { k: 'me' })), o.map(r => Object.assign(r, { k: 'him' })))
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
       log.innerHTML = '';
-      all.forEach(m => add(m.k, m.message));
+      all.forEach(m => add(m.k, m.message, m.id));
       lastOut = Math.max(0, ...o.map(r => r.id));
       setOnline(true);
       if (!all.length) add('sys', 'Say something — JARVIS answers on your PC and here.');
@@ -113,8 +162,8 @@
       if (Array.isArray(rows)) for (const row of rows) {
         lastOut = row.id; pending = 0; clearTimeout(waitTimer);
         document.querySelectorAll('.msg.sys.wait').forEach(n => n.remove());
-        add('him', row.message);
-        if ($('speak').checked) say(row.message);
+        const bub = add('him', row.message, row.id);
+        if ($('speak').checked) playVoice(row.id, bub.querySelector('.rp'), false);
       }
     } catch (e) { setOnline(false); }
   }
@@ -142,7 +191,6 @@
     rec.onend = rec.onerror = () => $('mic').classList.remove('live');
     $('mic').onclick = () => { try { rec.lang = navigator.language || 'en-US'; rec.start(); $('mic').classList.add('live'); } catch (_) {} };
   } else { $('mic').style.display = 'none'; }
-  function say(t) { try { const u = new SpeechSynthesisUtterance(t); speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (_) {} }
 
   history();
 })();
