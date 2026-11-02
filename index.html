@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#050b10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>JARVIS</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%2300d4ff'/></svg>">
+<style>
+  :root { --bg:#050b10; --panel:#0a1620; --line:#12303f; --pri:#00d4ff; --text:#d8f3ff; --dim:#6f95a6;
+          --me:#06323f; --him:#0b1d29; --ok:#2fe38a; --warn:#ffb020; --bad:#ff5d5d; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  body { display:flex; flex-direction:column; height:100dvh;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+  header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
+    border-bottom:1px solid var(--line); background:var(--panel); gap:12px; }
+  .brand { font-weight:700; letter-spacing:.18em; color:var(--pri); }
+  .status { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dim); min-width:0; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--dim); flex:none; }
+  .dot.on { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .dot.off { background:var(--warn); }
+  #lock { background:none; border:1px solid var(--line); color:var(--dim); border-radius:8px; padding:4px 8px; font-size:12px; cursor:pointer; }
+  #log { flex:1; overflow-y:auto; padding:14px 12px; display:flex; flex-direction:column; gap:8px; }
+  .msg { max-width:88%; padding:10px 13px; border-radius:14px; white-space:pre-wrap; word-wrap:break-word;
+    border:1px solid var(--line); unicode-bidi:plaintext; }
+  .me  { align-self:flex-end; background:var(--me); border-bottom-right-radius:4px; }
+  .him { align-self:flex-start; background:var(--him); border-bottom-left-radius:4px; }
+  .sys { align-self:center; font-size:12px; color:var(--dim); border:none; background:none; text-align:center; }
+  .card { align-self:stretch; border:1px solid var(--warn); background:#1a1405; border-radius:12px; padding:12px; }
+  .card h4 { margin:0 0 6px; font-size:13px; color:var(--warn); letter-spacing:.06em; }
+  .card pre { margin:0 0 10px; padding:8px; background:#0c0a03; border-radius:8px; overflow-x:auto;
+    white-space:pre-wrap; word-break:break-all; font:13px/1.35 ui-monospace,Menlo,Consolas,monospace; }
+  .card .cwd { font-size:12px; color:var(--dim); margin-bottom:8px; }
+  .card .row { display:flex; gap:10px; }
+  .card button { flex:1; height:42px; border-radius:10px; border:0; font-weight:700; font-size:15px; cursor:pointer; }
+  .card .yes { background:var(--ok); color:#00130a; }
+  .card .no  { background:#2a1111; color:var(--bad); border:1px solid var(--bad); }
+  .card.done { opacity:.6; border-color:var(--line); background:var(--panel); }
+  .card.done h4 { color:var(--dim); }
+  form { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); background:var(--panel); }
+  input[type=text], input[type=password] { flex:1; min-width:0; background:#06121a; color:var(--text);
+    border:1px solid var(--line); border-radius:22px; padding:12px 16px; font-size:16px; outline:none; }
+  input:focus { border-color:var(--pri); }
+  form button { border:0; border-radius:50%; width:44px; height:44px; flex:none; cursor:pointer;
+    background:var(--pri); color:#00131a; font-weight:700; }
+  form button:disabled { opacity:.4; }
+  .note { padding:6px 16px 10px; font-size:12px; color:var(--dim); background:var(--panel); text-align:center; }
+  .gate { margin:auto; padding:24px; width:min(420px,100%); text-align:center; }
+  .gate h2 { margin:0 0 8px; color:var(--pri); letter-spacing:.12em; }
+  .gate p { color:var(--dim); font-size:14px; }
+  .gate form { background:none; border:0; padding:0; margin-top:14px; }
+  .err { color:var(--bad); font-size:13px; min-height:18px; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">JARVIS</span>
+  <span class="status"><span class="dot" id="dot"></span><span id="stat">connecting…</span></span>
+  <button id="lock" type="button" hidden>lock</button>
+</header>
+<div id="log"></div>
+<form id="f" autocomplete="off" hidden>
+  <input type="text" id="t" dir="auto" placeholder="Message JARVIS…" enterkeyhint="send" autocomplete="off">
+  <button type="submit" id="send" aria-label="Send">➤</button>
+</form>
+<div class="note" id="note" hidden></div>
+
+<script src="config.js"></script>
+<script src="jcrypto.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var log = $('log'), dot = $('dot'), stat = $('stat'), form = $('f'), input = $('t'), sendBtn = $('send'),
+      note = $('note'), lockBtn = $('lock');
+  var CFG = window.JARVIS_CLOUD, J = window.JCrypto;
+
+  if (!CFG || !CFG.url || !CFG.key) { log.innerHTML = '<div class="gate"><p>config.js is missing — upload the whole <b>phone</b> folder.</p></div>'; return; }
+  if (!window.isSecureContext || !window.crypto || !window.crypto.subtle) {
+    log.innerHTML = '<div class="gate"><p>This page must be opened over <b>https://</b> (Vercel and Netlify do this for you).</p></div>'; return;
+  }
+
+  var BASE = CFG.url.replace(/\/$/, '');
+  var H = { apikey: CFG.key, Authorization: 'Bearer ' + CFG.key, 'Content-Type': 'application/json' };
+  var key = null;
+  var serverSkew = 0;            // serverNow - deviceNow, from Supabase's Date header
+  var laptopOn = false;
+  var shown = {};                // outbox ids already on screen
+  var lastOut = 0;
+  var waiting = false, waitTimer = null;
+  var answered = {};             // approval ids this phone has answered
+  var APPROVAL_TTL = 120000;
+
+  function rest(path, opt) {
+    return fetch(BASE + '/rest/v1/' + path, Object.assign({ headers: H }, opt || {})).then(function (r) {
+      var d = r.headers.get('date'); if (d) serverSkew = new Date(d).getTime() - Date.now();
+      return r;
+    });
+  }
+  var serverNow = function () { return Date.now() + serverSkew; };
+
+  /* ── drawing ─────────────────────────────────────────────────────────── */
+  function scroll() { log.scrollTop = log.scrollHeight; }
+  function bubble(kind, text) {
+    var d = document.createElement('div'); d.className = 'msg ' + kind; d.textContent = text;
+    log.appendChild(d); scroll(); return d;
+  }
+  function sysline(text) { var d = document.createElement('div'); d.className = 'msg sys'; d.textContent = text; log.appendChild(d); scroll(); return d; }
+  function setStatus(on, text) { dot.className = 'dot ' + (on ? 'on' : 'off'); stat.textContent = text; }
+
+  function approvalCard(m, createdAt) {
+    var card = document.createElement('div'); card.className = 'card';
+    var h = document.createElement('h4'); h.textContent = (m.title || 'JARVIS WANTS TO RUN A COMMAND').toUpperCase();
+    var cwd = document.createElement('div'); cwd.className = 'cwd'; cwd.textContent = m.title ? (m.cwd || '') : 'in ' + (m.cwd || '(default folder)');
+    var pre = document.createElement('pre'); pre.textContent = m.cmd || '';
+    var row = document.createElement('div'); row.className = 'row';
+    var yes = document.createElement('button'); yes.className = 'yes'; yes.type = 'button'; yes.textContent = 'Approve';
+    var no = document.createElement('button'); no.className = 'no'; no.type = 'button'; no.textContent = 'Deny';
+    row.appendChild(yes); row.appendChild(no);
+    card.appendChild(h); card.appendChild(cwd); card.appendChild(pre); card.appendChild(row);
+    function close(label) { card.className = 'card done'; h.textContent = label; row.remove(); }
+    var age = serverNow() - new Date(createdAt).getTime();
+    if (answered[m.id]) close('ANSWERED'); else if (age > APPROVAL_TTL) close('EXPIRED');
+    else {
+      var answer = function (ok) {
+        answered[m.id] = true; close(ok ? 'APPROVED' : 'DENIED');
+        J.seal(key, 'approval', { id: m.id, ok: ok }).then(function (env) {
+          return rest('phone_inbox', { method: 'POST', headers: Object.assign({ Prefer: 'return=minimal' }, H), body: JSON.stringify({ message: env }) });
+        }).catch(function () { sysline('Could not send your answer — check your connection.'); });
+      };
+      yes.onclick = function () { answer(true); }; no.onclick = function () { answer(false); };
+      setTimeout(function () { if (!answered[m.id]) close('EXPIRED'); }, Math.max(0, APPROVAL_TTL - age));
+    }
+    log.appendChild(card); scroll();
+  }
+
+  function render(m, createdAt, id) {
+    if (m.k === 'chat') { stopWaiting(); bubble('him', m.text || ''); }
+    else if (m.k === 'approval') approvalCard(m, createdAt);
+    else if (m.k === 'sys') { stopWaiting(); sysline(m.text || ''); }
+  }
+
+  /* ── waiting indicator ───────────────────────────────────────────────── */
+  var waitEl = null;
+  function startWaiting() {
+    stopWaiting(); waiting = true;
+    waitEl = sysline('JARVIS is working…');
+    waitTimer = setTimeout(function () { stopWaiting(); sysline('No answer yet — the laptop may be busy or have gone off.'); }, 150000);
+  }
+  function stopWaiting() { waiting = false; clearTimeout(waitTimer); if (waitEl) { waitEl.remove(); waitEl = null; } }
+
+  /* ── laptop status ───────────────────────────────────────────────────── */
+  async function checkLaptop() {
+    try {
+      var r = await rest('kv_store?select=value&key=eq.jarvis:heartbeat');
+      var rows = await r.json(), v = rows && rows[0] && rows[0].value;
+      var fresh = !!(v && v.on && (serverNow() - new Date(v.ts).getTime()) < 60000);
+      if (fresh !== laptopOn) {
+        laptopOn = fresh;
+        if (key) sysline(fresh ? 'Laptop is on — I can act on it.' : 'Laptop is off — I can only chat until it is back.');
+      }
+      setStatus(fresh, fresh ? 'laptop on' : 'laptop off — chat only');
+    } catch (_) { setStatus(false, 'no connection'); }
+  }
+
+  /* ── history + polling ───────────────────────────────────────────────── */
+  async function loadHistory() {
+    var res = await Promise.all([
+      rest('phone_inbox?select=id,message,created_at&order=created_at.desc&limit=30').then(function (r) { return r.json(); }),
+      rest('phone_outbox?select=id,message,created_at&order=created_at.desc&limit=30').then(function (r) { return r.json(); })
+    ]);
+    var inb = res[0] || [], outb = res[1] || [];
+    var all = [];
+    for (var i = 0; i < inb.length; i++) all.push({ side: 'in', row: inb[i] });
+    for (var j = 0; j < outb.length; j++) all.push({ side: 'out', row: outb[j] });
+    all.sort(function (a, b) { return new Date(a.row.created_at) - new Date(b.row.created_at); });
+    var okCount = 0, tried = 0;
+    log.innerHTML = '';
+    for (var k = 0; k < all.length; k++) {
+      var e = all[k], m = await J.unseal(key, e.row.message); tried++;
+      if (!m) continue; okCount++;
+      if (e.side === 'in') { if (m.k === 'chat') bubble('me', m.text || ''); }
+      else { shown[e.row.id] = true; lastOut = Math.max(lastOut, e.row.id); render(m, e.row.created_at, e.row.id); }
+    }
+    for (var q = 0; q < outb.length; q++) lastOut = Math.max(lastOut, outb[q].id);
+    if (tried > 0 && okCount === 0) return false;     // rows exist but none decrypt: wrong passphrase
+    if (!all.length) sysline('Say something. If the laptop is on, JARVIS can act on it.');
+    return true;
+  }
+
+  async function poll() {
+    if (!key) return;
+    try {
+      var r = await rest('phone_outbox?select=id,message,created_at&id=gt.' + lastOut + '&order=id.asc&limit=20');
+      var rows = await r.json();
+      for (var i = 0; i < rows.length; i++) {
+        lastOut = Math.max(lastOut, rows[i].id);
+        if (shown[rows[i].id]) continue; shown[rows[i].id] = true;
+        var m = await J.unseal(key, rows[i].message); if (m) render(m, rows[i].created_at, rows[i].id);
+      }
+    } catch (_) {}
+  }
+
+  /* ── sending ─────────────────────────────────────────────────────────── */
+  async function send(text) {
+    bubble('me', text);
+    await checkLaptop();
+    var env = await J.seal(key, 'chat', { text: text });
+    if (laptopOn) {
+      var r = await rest('phone_inbox', { method: 'POST', headers: Object.assign({ Prefer: 'return=minimal' }, H), body: JSON.stringify({ message: env }) });
+      if (!r.ok) { sysline('Could not send — try again.'); return; }
+      startWaiting();
+      return;
+    }
+    // Laptop is off: the cloud function answers as a plain chat assistant.
+    startWaiting();
+    try {
+      var fr = await fetch(BASE + '/functions/v1/' + (CFG.fn || 'phone-chat'), { method: 'POST', headers: H, body: JSON.stringify({ message: env }) });
+      var body = await fr.json().catch(function () { return {}; });
+      if (fr.status === 409) {                // heartbeat came back between our check and the call
+        laptopOn = true;
+        await rest('phone_inbox', { method: 'POST', headers: Object.assign({ Prefer: 'return=minimal' }, H), body: JSON.stringify({ message: env }) });
+        return;
+      }
+      if (!fr.ok || !body.reply) { stopWaiting(); sysline(fr.status === 401 ? 'The cloud function rejected your passphrase.' : 'The offline assistant could not answer right now.'); return; }
+      var m = await J.unseal(key, body.reply);
+      if (body.id) { shown[body.id] = true; lastOut = Math.max(lastOut, body.id); }
+      if (m) render(m, new Date().toISOString(), body.id);
+    } catch (_) { stopWaiting(); sysline('No connection to the cloud.'); }
+  }
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var text = input.value.trim(); if (!text || !key) return;
+    input.value = ''; send(text.slice(0, 4000));
+  });
+
+  /* ── passphrase gate ─────────────────────────────────────────────────── */
+  function gate(msg) {
+    form.hidden = true; lockBtn.hidden = true; note.hidden = true; log.innerHTML = '';
+    var g = document.createElement('div'); g.className = 'gate';
+    g.innerHTML = '<h2>JARVIS</h2><p>Enter your phone passphrase (it is in <b>config/api_keys.json</b> on your laptop, under <b>phone_passphrase</b>). It stays on this device.</p>' +
+      '<form id="gf"><input type="password" id="gp" placeholder="Passphrase" autocomplete="current-password"><button type="submit" aria-label="Unlock">➤</button></form><div class="err" id="ge"></div>';
+    log.appendChild(g);
+    var err = g.querySelector('#ge'); err.textContent = msg || '';
+    g.querySelector('#gf').addEventListener('submit', async function (ev) {
+      ev.preventDefault();
+      var pass = g.querySelector('#gp').value; if (!pass) return;
+      err.textContent = 'checking…';
+      await unlock(pass);
+    });
+  }
+
+  async function unlock(pass) {
+    try {
+      key = await J.deriveKey(pass);
+      var ok = await loadHistory();
+      if (!ok) { key = null; localStorage.removeItem('jarvis_pass'); gate('That passphrase does not match your laptop’s.'); return; }
+      try { localStorage.setItem('jarvis_pass', pass); } catch (_) {}
+      form.hidden = false; lockBtn.hidden = false; note.hidden = false;
+      note.textContent = 'Messages are end-to-end encrypted with your passphrase.';
+      await checkLaptop();
+      setInterval(poll, 2500); setInterval(checkLaptop, 10000);
+    } catch (e) { key = null; gate('Something went wrong: ' + e.message); }
+  }
+
+  lockBtn.addEventListener('click', function () { try { localStorage.removeItem('jarvis_pass'); } catch (_) {} location.reload(); });
+
+  var saved = null; try { saved = localStorage.getItem('jarvis_pass'); } catch (_) {}
+  if (saved) unlock(saved); else { gate(''); checkLaptop(); }
+})();
+</script>
+</body>
+</html>
